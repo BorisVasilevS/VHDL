@@ -1,0 +1,279 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+
+entity run_str is
+port(
+	CLK: in std_logic;
+	RST: in std_logic;
+	BUT : in std_logic;
+	RS, RW, EN: out std_logic;
+	LCD_ON, BLON: out std_logic := '1';
+	DATA: inout std_logic_vector(7 downto 0)
+);
+end entity;
+
+architecture LCD_RTL of run_str is
+signal RS_HL, RW_HL, Start, Ready, Tover, OE : std_logic;
+signal Tmax: integer range 0 to 1023 := 0;
+signal CNT: integer range 0 to 1023 := 0;
+
+type StateLL is (IDLE, SET_RSRW, SET_E_DATA, CLR_E, SET_RSRW_BUSY, SET_E_BUSY, READ_BUSY, LLREADY);
+signal StLL: StateLL := IDLE; 
+
+type StateHL is (WAIT_READY, SEND, DELAY, IDLE);
+signal StHL: StateHL := WAIT_READY;  
+
+signal DATA_IN, DATA_OUT : std_logic_vector (7 downto 0);
+
+
+
+begin
+
+DATA <= DATA_OUT when OE = '0' else "ZZZZZZZZ";
+DATA_IN <= DATA; 
+LCD_ON<= '1';
+RW <= OE;
+
+process(clk)
+begin
+	if(RST = '0') then
+		CNT <= 0;
+		Tover <= '0';
+	elsif(rising_edge(clk)) then 
+		if(CNT >= Tmax) then 
+			CNT <= 0;
+			Tover <= '1';
+		else 
+			CNT <= CNT + 1;
+			Tover <= '0';
+		end if;
+	end if;
+end process;
+
+SM_LL: process(clk)
+begin 
+	if(RST = '0') then
+		StLL <= IDLE;
+		RS <= '1';
+		OE <= '1';
+		EN <= '0';
+		Ready <= '0';
+	elsif(rising_edge(clk))	then 
+		case(StLL) is
+			when IDLE =>				
+					RS <= '1';
+					OE <= '1';
+					EN <= '0';
+					Ready <= '1';
+					Tmax <= 30;
+				if(start = '1') then 
+					StLL <= SET_RSRW;
+					ready <= '0';
+				else
+					StLL <= IDLE;
+					ready <= '1';
+				end if;
+			
+			when SET_RSRW =>
+				
+					RS <= RS_HL;
+					OE <= RW_HL;
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= SET_E_DATA;
+				else
+					StLL <= SET_RSRW;
+				end if;
+			
+			when SET_E_DATA => 
+				
+					RS <= RS_HL;
+					OE <= RW_HL;
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= CLR_E;
+				else
+					StLL <= SET_E_DATA;
+				end if;
+				
+			when CLR_E =>
+				
+					RS <= RS_HL;
+					OE <= RW_HL;
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= SET_RSRW_BUSY;
+				else
+					StLL <= CLR_E;
+				end if;
+				
+			when SET_RSRW_BUSY => 
+				
+					RS <= '0';
+					OE <= '1';
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= SET_E_BUSY;
+				else
+					StLL <= SET_RSRW_BUSY;
+
+				end if;
+			when SET_E_BUSY =>
+				
+					RS <= '0';
+					OE <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= READ_BUSY;
+				else
+					StLL <= SET_E_BUSY;
+				end if;
+				
+			when READ_BUSY =>
+				
+					RS <= '0';
+					OE <= '1';
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 30;
+				if(DATA_IN(7) = '0') then
+					StLL <= LLREADY;
+				else
+					if(Tover = '1') then
+						StLL <= SET_E_BUSY;
+					else
+						StLL <= READ_BUSY;
+					end if;
+				end if;
+		
+			when LLREADY =>
+				
+					RS <= '1';
+					OE <= '1';
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 30;
+				if(Tover = '1') then 
+					StLL <= IDLE;
+				else
+					StLL <= LLREADY;
+				end if;
+				
+		end case;
+	end if;
+end process SM_LL;	
+
+SM_HL: process(clk)
+
+variable Byte_cnt : integer range 0 to 255 := 0;
+constant MAX_BYTE : integer := 21;
+type Buf is array (0 to MAX_BYTE - 1) of std_logic_vector (7 downto 0);
+constant DATA_BUF1 : Buf := ( X"38", -- DL 1 N =1 (2 str) F= 0 (5*8)
+ X"80", -- addr 0 
+ X"0E", -- D =1(on) C=0 (on cursor) B=0 (off cursor)
+ x"05",-- I/D = 0 (move right) S=1 (move lcd)
+ x"1E", --move right
+ x"1E", --move right
+ x"1E", --move right
+ x"1E", --move right
+ x"01",-- clear
+ x"48",--H
+ x"65", --e
+ x"6C",--l
+ x"6C",--l
+ x"6F",--0
+ x"20",--
+ x"77",--w
+ x"6F",--o
+ x"72",--r
+ x"6C",--l
+ x"64",--d
+ x"20");--!
+constant DATA_BUF0 : Buf := ( X"38",X"C0", X"0E",x"05", x"1E", x"1E",x"1E",x"1E", x"01", x"48", x"65", x"6C", x"6C", x"6F", x"20", x"77", x"6F", x"72", x"6C", x"64",x"20");
+variable CNT_DELAY : integer := 0;
+
+begin	
+	if(RST = '0') then
+		StHL <= WAIT_READY;
+		Byte_cnt := 0;
+		Start <= '0';
+	elsif(rising_edge(clk))	then 
+		case(StHL) is
+		
+		when WAIT_READY =>
+				if(Ready = '0') then 
+					StHL <= WAIT_READY;
+					Start <= '0';
+				else
+					
+					if(Byte_cnt = MAX_BYTE) then 
+						StHL <= IDLE;
+						Start <= '0';
+					else
+						StHL <= SEND;
+						Start <= '1';
+					end if;
+				end if;
+				
+			when SEND =>
+				 Start <= '1';
+				 if (BUT = '1') then 
+				 Data_out <= DATA_BUF1(byte_cnt);
+				 RW_HL <= '0';
+					 if (byte_cnt < 9) then 
+					 RS_HL <= '0';
+					 else 
+					 RS_HL <= '1';
+					end if;
+				 else 
+				 Data_out <= DATA_BUF0(byte_cnt);
+				 RW_HL <= '0';
+					 if (byte_cnt < 9) then 
+					 RS_HL <= '0';
+					 else 
+					 RS_HL <= '1';
+					end if;
+				 end if;
+				StHL <= DELAY;
+				CNT_DELAY := 0;
+				Byte_cnt := Byte_cnt + 1;
+				
+				
+			when DELAY =>
+				CNT_DELAY := CNT_DELAY + 1;
+				if (CNT_DELAY = 20) then
+					StHL <= WAIT_READY;
+				else
+					StHL <= DELAY;
+				end if;
+			when IDLE =>
+				StHL <= IDLE;
+				Start <= '0';
+				Byte_cnt := 0;		
+
+		end case;
+	end if;
+end process SM_HL;
+
+end architecture;
+
+
+
+
+
+
+
+
+

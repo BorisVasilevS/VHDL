@@ -1,0 +1,190 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+
+entity LCD is
+port(
+	CLK 				: in std_logic;
+	RST 				: in std_logic;
+	RS, RW, EN 		: in std_logic;
+	LCD_ON, BLON 	: out std_logic := '1';
+	DATA				: inout std_logic_vector(7 downto 0)
+);
+
+architecture LCD_RTL of LCD is
+
+
+signal Start, Ready, Tover, RS_HL, RW_HL : std_logic;
+signal Tmax: integer range 0 to 1023 := 0;
+
+
+type StateLL is (IDLE, SET_RS_RW, SET_E_DATA, CLR_E, SET_RS_RW_BUSY, READ_BUSY, LL_READY); --LL = low level
+signal StLL : StateLL := IDLE;
+
+
+signal DATA : std_logic_vector(7 downto 0);
+signal DATA_IN, DATA_OUT : std_logic_vector(7 downto 0);
+
+
+begin
+
+DATA <= DATA_OUT when RW = '0' else "ZZZZZZZZ";
+DATA_IN <= DATA;
+
+process(CLK)
+variable CNT: integer range 0 to 1023 := 0;
+begin
+	if(RST = '0') then
+		CNT := 0;
+		Tover <= '0'
+	elsif(rising_edge(CLK)) then
+		if(CNT = Tmax) then
+			CNT := 0;
+			Tover <= '1'
+		else
+			CNT := CNT + 1;
+			Tover <= '0';
+		end if;
+	end if;
+end process;
+
+SM_LL:
+process(CLK)
+begin		
+	if(RST = '0') then
+		STLL <= IDLE;
+		RS <= '1';
+		RW <= '1';
+		EN <= '0';
+		Ready <= '0';
+	elsif(rising_edge(CLK)) then
+		case STLL is
+------------------------------------------------------
+			when IDLE =>
+				if(start = '1') then
+					STLL <= SET_RS_RW;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 2;
+				else
+					STLL <= IDLE;
+					RS <= '1';
+					RW <= '1';
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= '0';
+				end if;
+------------------------------------------------------				
+			when SET_RS_RW =>
+				if(Tover = '1') then
+					STLL <= SET_E_DATA;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 20;
+				else
+					STLL <= SET_RS_RW;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '0';
+					Ready <= '0';
+				end if;
+------------------------------------------------------			
+		when SET_E_DATA =>
+				if(Tover = '1') then
+					STLL <= CLR_E;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 20;
+				else
+					STLL <= SET_E_DATA;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 20;
+				end if;
+------------------------------------------------------
+		when CLR_E =>
+				if(Tover = '1') then
+					STLL <= SET_RS_RW_BUSY;
+					RS <= '0';
+					RW <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 2;
+				else
+					STLL <= CLR_E;
+					RS <= RS_HL;
+					RW <= RW_HL;
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 20;
+				end if;
+------------------------------------------------------
+		when SET_RS_RW_BUSY =>
+				if(Tover = '1') then
+					STLL <= READ_BUSY;
+					RS <= '0';
+					RW <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 0;
+				else
+					STLL <= SET_RS_RW_BUSY;
+					RS <= '0';
+					RW <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 2;
+				end if;
+------------------------------------------------------
+		when READ_BUSY =>
+				if(DATA_IN(7) = '0') then
+					STLL <= LL_READY;
+					RS <= '0';
+					RW <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 20;
+				else
+					STLL <= READ_BUSY;
+					RS <= '0';
+					RW <= '1';
+					EN <= '1';
+					Ready <= '0';
+					Tmax <= 0;
+				end if;
+------------------------------------------------------
+		when LL_READY =>
+				if(Tover = '1') then
+					STLL <= IDLE;
+					RS <= '1';
+					RW <= '1';
+					EN <= '0';
+					Ready <= '1';
+					Tmax <= 20;
+				else
+					STLL <= LL_READY;
+					RS <= '1';
+					RW <= '1';
+					EN <= '0';
+					Ready <= '0';
+					Tmax <= 20;
+				end if;
+		end case;
+-------------------------------------------------------------
+--------  ----------       ------  ---- ---------------------
+------  --  --------  ---  -------  --  ---------------------
+----  -----  -------  ---  --------   -----------------------
+---  -------  ------  ---  --------   -----------------------
+--  ---------  -----  ---  -------  -  ----------------------
+-  -----------  ----       ------  ---  ---------------------
+-------------------------------------------------------------
+	
