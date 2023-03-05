@@ -1,0 +1,85 @@
+|ECHO
+CLOCK_50 => UART_RX:reciever.CLOCK_50
+CLOCK_50 => UART_Tx:transmitter.clk
+data_in => UART_RX:reciever.RX
+data_out <= UART_Tx:transmitter.tx_data_out
+
+
+|ECHO|UART_RX:reciever
+CLOCK_50 => RX_Data[0]~reg0.CLK
+CLOCK_50 => RX_Data[1]~reg0.CLK
+CLOCK_50 => RX_Data[2]~reg0.CLK
+CLOCK_50 => RX_Data[3]~reg0.CLK
+CLOCK_50 => RX_Data[4]~reg0.CLK
+CLOCK_50 => RX_Data[5]~reg0.CLK
+CLOCK_50 => RX_Data[6]~reg0.CLK
+CLOCK_50 => RX_Data[7]~reg0.CLK
+CLOCK_50 => i[0].CLK
+CLOCK_50 => i[1].CLK
+CLOCK_50 => i[2].CLK
+CLOCK_50 => DATA[0].CLK
+CLOCK_50 => DATA[1].CLK
+CLOCK_50 => DATA[2].CLK
+CLOCK_50 => DATA[3].CLK
+CLOCK_50 => DATA[4].CLK
+CLOCK_50 => DATA[5].CLK
+CLOCK_50 => DATA[6].CLK
+CLOCK_50 => DATA[7].CLK
+CLOCK_50 => cnt.CLK
+CLOCK_50 => RX_Done~reg0.CLK
+CLOCK_50 => state~1.DATAIN
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => DATA.DATAB
+RX => RX_Done.DATAA
+RX => Selector2.IN3
+RX => Selector3.IN1
+RX_Data[0] <= RX_Data[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[1] <= RX_Data[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[2] <= RX_Data[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[3] <= RX_Data[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[4] <= RX_Data[4]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[5] <= RX_Data[5]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[6] <= RX_Data[6]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Data[7] <= RX_Data[7]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+RX_Done <= RX_Done~reg0.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|ECHO|UART_Tx:transmitter
+clk => tx_data_out~reg0.CLK
+clk => bit_index[0].CLK
+clk => bit_index[1].CLK
+clk => bit_index[2].CLK
+clk => baud_rate_clk.CLK
+clk => \baud_rate:baud_count.CLK
+clk => state~5.DATAIN
+reset_n => state.OUTPUTSELECT
+reset_n => state.OUTPUTSELECT
+reset_n => state.OUTPUTSELECT
+reset_n => state.OUTPUTSELECT
+reset_n => bit_index.OUTPUTSELECT
+reset_n => bit_index.OUTPUTSELECT
+reset_n => bit_index.OUTPUTSELECT
+reset_n => tx_data_out.OUTPUTSELECT
+reset_n => baud_rate_clk.OUTPUTSELECT
+reset_n => baud_count.OUTPUTSELECT
+tx_start_en => state.OUTPUTSELECT
+tx_start_en => state.OUTPUTSELECT
+tx_start_en => state.OUTPUTSELECT
+tx_start_en => state.OUTPUTSELECT
+tx_data_in[0] => Mux0.IN7
+tx_data_in[1] => Mux0.IN6
+tx_data_in[2] => Mux0.IN5
+tx_data_in[3] => Mux0.IN4
+tx_data_in[4] => Mux0.IN3
+tx_data_in[5] => Mux0.IN2
+tx_data_in[6] => Mux0.IN1
+tx_data_in[7] => Mux0.IN0
+tx_data_out <= tx_data_out~reg0.DB_MAX_OUTPUT_PORT_TYPE
+
+

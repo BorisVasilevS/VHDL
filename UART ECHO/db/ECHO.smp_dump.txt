@@ -1,0 +1,14 @@
+
+State Machine - |ECHO|UART_Tx:transmitter|state
+Name state.STOP state.DATA state.START state.IDLE 
+state.IDLE 0 0 0 0 
+state.START 0 0 1 1 
+state.DATA 0 1 0 1 
+state.STOP 1 0 0 1 
+
+State Machine - |ECHO|UART_RX:reciever|state
+Name state.stop_bit state.recieve state.start_bit state.IDLE 
+state.IDLE 0 0 0 0 
+state.start_bit 0 0 1 1 
+state.recieve 0 1 0 1 
+state.stop_bit 1 0 0 1 
